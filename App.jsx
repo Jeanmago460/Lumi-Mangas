@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, collection, doc, onSnapshot, updateDoc, deleteDoc, arrayUnion, arrayRemove, getDoc, setDoc, addDoc } from 'firebase/firestore';
-import * as Icons from 'lucide-react';
+import { getFirestore, collection, doc, onSnapshot, addDoc, deleteDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDHoYGVe2PbZW_yRWOLMlGAGMa-uncmxPM",
@@ -17,263 +16,54 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 const MONARCH_EMAIL = "claudiojean345@gmail.com";
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState({ nickname: '', photo: '' });
   const [mangas, setMangas] = useState([]);
-  const [announcement, setAnnouncement] = useState("");
   const [view, setView] = useState('home');
-  const [selectedManga, setSelectedManga] = useState(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [commentText, setCommentText] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [notification, setNotification] = useState(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-
-  const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        const pRef = doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'profile');
-        const snap = await getDoc(pRef);
-        if (snap.exists()) setProfile(snap.data());
-        else {
-          const init = { nickname: u.displayName, photo: u.photoURL };
-          await setDoc(pRef, init);
-          setProfile(init);
-        }
-      }
-      setIsLoading(false);
-    });
-    return () => unsubAuth();
-  }, []);
-
-  useEffect(() => {
-    const unsubM = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'mangas'), (s) => {
+    onAuthStateChanged(auth, (u) => setUser(u));
+    onSnapshot(collection(db, 'mangas'), (s) => {
       setMangas(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-    const unsubA = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'announcement'), (d) => {
-      if (d.exists()) setAnnouncement(d.data().text);
-    });
-    return () => { unsubM(); unsubA(); };
   }, []);
 
+  const login = () => signInWithPopup(auth, provider);
   const isMonarch = user && user.email === MONARCH_EMAIL;
 
-  const handleLogin = async () => { try { await signInWithPopup(auth, provider); notify("Bem-vindo, Soberano."); } catch (e) { notify("Falha no Portal."); } };
-
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    if (!user) return;
-    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'profile'), profile);
-    setShowProfileModal(false);
-    notify("Identidade Atualizada.");
-  };
-
-  const handleAddManga = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.target);
-    const pStr = f.get('pages');
-    const pages = pStr ? pStr.split(',').map(p => p.trim()).filter(p => p !== "") : [];
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'mangas'), {
-      title: f.get('title'),
-      cover: f.get('cover') || 'https://via.placeholder.com/400x600',
-      description: f.get('description'),
-      pages: pages,
-      likes: [],
-      comments: [],
-      createdAt: new Date().toISOString()
-    });
-    notify("Obra Criada!");
-    setView('home');
-  };
-
-  if (isLoading) return <div className="h-screen bg-black flex items-center justify-center text-blue-500 font-black animate-pulse uppercase tracking-[0.5em]">Lumi: Sincronizando...</div>;
-
   return (
-    <div className="min-h-screen bg-[#050505] text-slate-200">
-      {notification && (
-        <div className="fixed top-24 right-6 z-[100] bg-blue-600 text-white px-6 py-3 rounded-2xl shadow-2xl border border-blue-400">
-          <span className="text-[10px] font-black uppercase">{notification}</span>
-        </div>
-      )}
-
-      {showProfileModal && (
-        <div className="fixed inset-0 z-[110] bg-black/95 flex items-center justify-center p-6 backdrop-blur-md">
-          <div className="bg-[#0a0a0a] border border-white/5 w-full max-w-md rounded-[40px] p-10 space-y-6 relative shadow-3xl">
-            <Icons.X className="absolute top-8 right-8 cursor-pointer text-slate-500" onClick={() => setShowProfileModal(false)} />
-            <h2 className="text-2xl font-black uppercase flex items-center gap-3 text-white"><Icons.Settings className="text-blue-500" /> Perfil</h2>
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative group">
-                <img src={profile.photo || user.photoURL} className="w-24 h-24 rounded-3xl object-cover border-2 border-blue-500/20 shadow-2xl" />
-                <label className="absolute inset-0 bg-black/60 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
-                  <Icons.Camera className="text-white" />
-                  <input type="file" hidden accept="image/*" onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => setProfile({ ...profile, photo: reader.result });
-                      reader.readAsDataURL(file);
-                    }
-                  }} />
-                </label>
-              </div>
-              <input value={profile.nickname} onChange={(e) => setProfile({...profile, nickname: e.target.value})} placeholder="Seu Apelido" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500 text-center font-bold" />
-              <button onClick={handleUpdateProfile} className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase tracking-widest">Salvar Identidade</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(announcement || isMonarch) && (
-        <div className="bg-blue-600/10 border-b border-blue-500/20 py-3 px-6 flex items-center justify-center gap-4">
-          <Icons.Bell className="w-4 h-4 text-blue-400" />
-          {isMonarch ? (
-            <input value={announcement} onChange={async (e) => { 
-              setAnnouncement(e.target.value); 
-              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'announcement'), { text: e.target.value }); 
-            }} placeholder="Aviso do Monarca..." className="bg-transparent border-none outline-none text-[10px] font-black text-white w-full max-w-2xl text-center uppercase tracking-widest" />
-          ) : <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">{announcement}</span>}
-          <Icons.Crown className="w-4 h-4 text-yellow-500" />
-        </div>
-      )}
-
-      <nav className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView('home')}>
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300"><Icons.Book className="text-white w-6 h-6" /></div>
-          <span className="text-xl font-black tracking-tighter uppercase">Lumi</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {isMonarch && <button onClick={() => setView('upload')} className="bg-white text-black px-4 py-2 rounded-full text-[10px] font-black uppercase hover:bg-blue-600 hover:text-white transition-all">Postar</button>}
-          {!user ? <button onClick={handleLogin} className="bg-blue-600 px-6 py-2 rounded-full text-[10px] font-black uppercase">Entrar</button> : (
-            <div className="flex items-center gap-3">
-              <img src={profile.photo || user.photoURL} onClick={() => setShowProfileModal(true)} className="w-9 h-9 rounded-xl border border-blue-500/30 object-cover cursor-pointer hover:scale-110 transition-all" />
-              <Icons.LogOut onClick={() => signOut(auth)} className="w-5 h-5 text-slate-500 cursor-pointer hover:text-red-500 transition-colors" />
-            </div>
-          )}
+    <div style={{ backgroundColor: '#050505', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', padding: '20px' }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px' }}>
+        <h1 onClick={() => setView('home')} style={{ cursor: 'pointer', color: '#3b82f6' }}>LUMI</h1>
+        <div>
+          {isMonarch && <button onClick={() => setView('upload')} style={{ marginRight: '10px' }}>Postar</button>}
+          {!user ? <button onClick={login}>Entrar</button> : <button onClick={() => signOut(auth)}>Sair</button>}
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto p-6">
-        {view === 'home' && (
-          <div className="space-y-12">
-            <div className="rounded-[40px] bg-blue-900/5 border border-white/5 p-16 text-center mt-4">
-              <Icons.Sparkles className="text-blue-500 w-10 h-10 mx-auto mb-4 animate-pulse" />
-              <h1 className="text-6xl md:text-8xl font-black text-white uppercase tracking-tighter mb-2 leading-none">REINO <span className="text-blue-600">JEAN</span></h1>
-              <p className="text-slate-500 font-bold uppercase tracking-[0.5em] text-[9px] opacity-60">Sincronia Global V4.6</p>
+      {view === 'home' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '20px' }}>
+          {mangas.map(m => (
+            <div key={m.id} style={{ border: '1px solid #333', borderRadius: '10px', overflow: 'hidden' }}>
+              <img src={m.cover} style={{ width: '100%', height: '200px', objectCover: 'cover' }} />
+              <div style={{ padding: '10px', fontSize: '12px' }}>{m.title}</div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
-              {mangas.map(m => (
-                <div key={m.id} className="group relative" onClick={() => { setSelectedManga(m); setView('detail'); setCurrentPage(0); }}>
-                  <div className="aspect-[3/4.5] rounded-3xl overflow-hidden border border-white/10 group-hover:border-blue-500 transition-all shadow-2xl relative bg-slate-900">
-                    <img src={m.cover} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-1000" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90" />
-                    <div className="absolute bottom-6 left-6 right-6 text-white font-black text-xs uppercase tracking-tight">{m.title}</div>
-                  </div>
-                  {isMonarch && (
-                    <button onClick={async (e) => { e.stopPropagation(); await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'mangas', m.id)); notify("Removido."); }} className="absolute -top-2 -right-2 bg-red-600 p-2 rounded-lg"><Icons.Trash2 className="w-4 h-4 text-white" /></button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {view === 'detail' && selectedManga && (
-          <div className="space-y-12 mt-6">
-            <button onClick={() => setView('home')} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-all"><Icons.ChevronLeft className="w-4 h-4" /> Voltar</button>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-              <div className="lg:col-span-4 space-y-6">
-                <img src={selectedManga.cover} className="w-full rounded-[40px] shadow-2xl border border-white/10" />
-                <button onClick={async () => {
-                  if(!user) return notify("Entre primeiro!");
-                  const mRef = doc(db, 'artifacts', appId, 'public', 'data', 'mangas', selectedManga.id);
-                  const likes = selectedManga.likes || [];
-                  const hasLiked = likes.includes(user.uid);
-                  await updateDoc(mRef, { likes: hasLiked ? arrayRemove(user.uid) : arrayUnion(user.uid) });
-                }} className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-xs transition-all ${selectedManga.likes?.includes(user?.uid) ? 'bg-red-600 text-white' : 'bg-white text-black'}`}>
-                  <Icons.Heart className={`w-4 h-4 ${selectedManga.likes?.includes(user?.uid) ? 'fill-white' : ''}`} /> {selectedManga.likes?.length || 0} Curtidas
-                </button>
-              </div>
-              <div className="lg:col-span-8 space-y-8">
-                <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-4">{selectedManga.title}</h1>
-                <p className="text-slate-400 text-lg leading-relaxed font-medium">{selectedManga.description}</p>
-                {selectedManga.pages?.length > 0 ? (
-                  <div className="space-y-6 pt-10 border-t border-white/5 text-center">
-                    <div className="aspect-[3/4.5] w-full max-w-xl mx-auto rounded-3xl overflow-hidden bg-black relative border border-white/5">
-                      <img src={selectedManga.pages[currentPage]} className="w-full h-full object-contain" />
-                      <div className="absolute inset-y-0 left-0 w-1/4 cursor-pointer" onClick={() => setCurrentPage(p => Math.max(0, p - 1))}></div>
-                      <div className="absolute inset-y-0 right-0 w-1/4 cursor-pointer" onClick={() => setCurrentPage(p => Math.min(selectedManga.pages.length - 1, p + 1))}></div>
-                    </div>
-                    <div className="flex justify-center gap-8 items-center">
-                      <Icons.ChevronLeft onClick={() => setCurrentPage(p => Math.max(0, p - 1))} className="cursor-pointer hover:text-blue-500" />
-                      <span className="text-xs font-black uppercase text-blue-500 tracking-[0.2em]">Página {currentPage + 1} / {selectedManga.pages.length}</span>
-                      <Icons.ChevronRight onClick={() => setCurrentPage(p => Math.min(selectedManga.pages.length - 1, p + 1))} className="cursor-pointer hover:text-blue-500" />
-                    </div>
-                  </div>
-                ) : <div className="p-10 border border-white/5 rounded-3xl text-center font-black opacity-30 text-[10px] tracking-widest uppercase">Sem pergaminhos vinculados.</div>}
-                <section className="pt-10 border-t border-white/5 space-y-6">
-                  <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3"><Icons.MessageSquare className="text-blue-500" /> Diálogo</h2>
-                  <div className="flex gap-4">
-                    <input placeholder={user ? "Sussurre ao reino..." : "Aceda para comentar..."} className="flex-1 bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500" value={commentText} onChange={(e) => setCommentText(e.target.value)} disabled={!user} />
-                    <button onClick={async () => {
-                      if (!user || !commentText.trim()) return;
-                      const mRef = doc(db, 'artifacts', appId, 'public', 'data', 'mangas', selectedManga.id);
-                      const nC = { id: Date.now().toString(), userId: user.uid, userName: profile.nickname || user.displayName, userPhoto: profile.photo || user.photoURL, text: commentText, date: new Date().toLocaleDateString() };
-                      await updateDoc(mRef, { comments: arrayUnion(nC) });
-                      setCommentText(''); notify("Enviado!");
-                    }} className="bg-blue-600 p-4 rounded-2xl disabled:opacity-20" disabled={!user || !commentText.trim()}><Icons.Send /></button>
-                  </div>
-                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scroll">
-                    {(selectedManga.comments || []).map((c) => (
-                      <div key={c.id} className="bg-white/5 p-6 rounded-3xl border border-white/5 relative group">
-                        <div className="flex items-center gap-3 mb-3">
-                          <img src={c.userPhoto} className="w-8 h-8 rounded-lg object-cover shadow-md" />
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase text-blue-400 leading-none">{c.userName}</span>
-                            <span className="text-[7px] text-slate-600 uppercase font-black mt-1">{c.date}</span>
-                          </div>
-                        </div>
-                        <p className="text-slate-300 text-sm">{c.text}</p>
-                        {(isMonarch || user?.uid === c.userId) && (
-                          <Icons.Trash2 className="absolute top-6 right-6 w-4 h-4 text-slate-600 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={async () => {
-                            const mRef = doc(db, 'artifacts', appId, 'public', 'data', 'mangas', selectedManga.id);
-                            await updateDoc(mRef, { comments: selectedManga.comments.filter(com => com.id !== c.id) });
-                            notify("Apagado.");
-                          }} />
-                        )}
-                      </div>
-                    )).reverse()}
-                  </div>
-                </section>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {view === 'upload' && isMonarch && (
-          <div className="max-w-2xl mx-auto bg-white/5 p-12 rounded-[50px] border border-white/5 mt-10">
-            <h2 className="text-4xl font-black text-white uppercase mb-10 tracking-tighter flex items-center gap-4"><Icons.Crown className="text-yellow-500" /> Nova Obra</h2>
-            <form onSubmit={handleAddManga} className="space-y-6">
-              <input name="title" required placeholder="Título" className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500 font-bold" />
-              <input name="cover" placeholder="URL da Capa" className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500" />
-              <textarea name="description" required rows="3" placeholder="Sinopse..." className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500"></textarea>
-              <textarea name="pages" required rows="5" placeholder="URLs das páginas (separadas por vírgula)..." className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500 text-xs font-mono"></textarea>
-              <button type="submit" className="w-full bg-white text-black py-5 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-blue-600 hover:text-white transition-all duration-500 shadow-xl">Lançar no Reino</button>
-            </form>
-          </div>
-        )}
-      </main>
-      
-      <footer className="py-24 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.6em] border-t border-white/5 mt-32">
-        Lumi Mangás • Soberania de Jean • 2026
-      </footer>
+          ))}
+        </div>
+      ) : (
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          const f = new FormData(e.target);
+          await addDoc(collection(db, 'mangas'), { title: f.get('t'), cover: f.get('c') });
+          setView('home');
+        }}>
+          <input name="t" placeholder="Título" required style={{ display: 'block', marginBottom: '10px' }} />
+          <input name="c" placeholder="Link da Capa" required style={{ display: 'block', marginBottom: '10px' }} />
+          <button type="submit">Lançar</button>
+        </form>
+      )}
     </div>
   );
 }
-
