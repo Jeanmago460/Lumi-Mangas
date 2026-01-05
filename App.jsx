@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, collection, doc, onSnapshot, addDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { Book, Sparkles, LogOut, Bell, Crown, Heart, MessageSquare, Send, ChevronLeft, Trash2 } from 'lucide-react';
+import { getFirestore, collection, doc, onSnapshot, addDoc, setDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { Book, Sparkles, LogOut, Bell, Crown, Heart, MessageSquare, Send, ChevronLeft, Trash2, ShieldAlert } from 'lucide-react';
 
-// CONFIGURAÇÃO DO JEAN - O SISTEMA RECONHECE SUA CHAVE
 const firebaseConfig = {
   apiKey: "AIzaSyDHoYGVe2PbZW_yRWOLMlGAGMa-uncmxPM",
   authDomain: "lumimangas-a209a.firebaseapp.com",
@@ -32,18 +31,24 @@ export default function App() {
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (u) => setUser(u));
     
-    // Sincronizar Mangás com a Trilha Correta do Artefato
     const unsubMangas = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'mangas'), (s) => {
       setMangas(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // Sincronizar Mural
     const unsubAnnounce = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'announcement'), (d) => {
       if (d.exists()) setAnnouncement(d.data().text);
     });
 
     return () => { unsubAuth(); unsubMangas(); unsubAnnounce(); };
   }, []);
+
+  // Sincronizar o mangá selecionado para ver comentários em tempo real
+  useEffect(() => {
+    if (selectedManga) {
+      const updated = mangas.find(m => m.id === selectedManga.id);
+      if (updated) setSelectedManga(updated);
+    }
+  }, [mangas]);
 
   const login = () => signInWithPopup(auth, provider);
   const isMonarch = user && user.email === MONARCH_EMAIL;
@@ -68,6 +73,7 @@ export default function App() {
     const mRef = doc(db, 'artifacts', appId, 'public', 'data', 'mangas', selectedManga.id);
     const newComment = {
       id: Date.now(),
+      userId: user.uid,
       userName: user.displayName,
       userPhoto: user.photoURL,
       text: commentText,
@@ -79,9 +85,22 @@ export default function App() {
     setCommentText('');
   };
 
-  const deleteManga = async (id) => {
+  // FUNÇÕES DE EXCLUSÃO (O MARTELO)
+  const handleDeleteManga = async (id, e) => {
+    e.stopPropagation(); // Evita abrir o detalhe ao clicar em excluir
     if (!isMonarch) return;
-    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'mangas', id));
+    const mRef = doc(db, 'artifacts', appId, 'public', 'data', 'mangas', id);
+    await deleteDoc(mRef);
+  };
+
+  const handleDeleteComment = async (mangaId, commentId) => {
+    if (!isMonarch) return;
+    const mRef = doc(db, 'artifacts', appId, 'public', 'data', 'mangas', mangaId);
+    const manga = mangas.find(m => m.id === mangaId);
+    const updatedComments = manga.comments.filter(c => c.id !== commentId);
+    await updateDoc(mRef, {
+      comments: updatedComments
+    });
   };
 
   return (
@@ -108,10 +127,10 @@ export default function App() {
       <nav className="p-6 flex justify-between items-center max-w-7xl mx-auto sticky top-0 bg-[#050505]/80 backdrop-blur-md z-50">
         <div onClick={() => setView('home')} className="flex items-center gap-3 cursor-pointer group">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-blue-500/50 transition-all"><Book className="text-white w-6 h-6" /></div>
-          <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent uppercase">Lumi</span>
+          <span className="text-xl font-black tracking-tighter uppercase">Lumi</span>
         </div>
         <div className="flex items-center gap-4">
-          {isMonarch && <button onClick={() => setView('upload')} className="bg-white text-black px-5 py-2 rounded-full text-[10px] font-black uppercase hover:bg-blue-500 hover:text-white transition-colors">Postar</button>}
+          {isMonarch && <button onClick={() => setView('upload')} className="bg-white text-black px-5 py-2 rounded-full text-[10px] font-black uppercase hover:bg-blue-600 hover:text-white transition-colors">Postar</button>}
           {!user ? (
             <button onClick={login} className="bg-blue-600 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">Entrar</button>
           ) : (
@@ -129,15 +148,29 @@ export default function App() {
             <div className="rounded-[40px] bg-gradient-to-br from-blue-900/10 to-transparent border border-white/5 p-16 text-center mt-4 relative overflow-hidden">
               <Sparkles className="text-blue-500 w-10 h-10 mx-auto mb-4 animate-pulse" />
               <h1 className="text-6xl md:text-8xl font-black text-white uppercase tracking-tighter mb-2 leading-none">REINO <span className="text-blue-600">JEAN</span></h1>
-              <p className="text-slate-500 font-bold uppercase tracking-[0.5em] text-[9px] opacity-60">Sincronia Estabilizada V1.2</p>
+              <p className="text-slate-500 font-bold uppercase tracking-[0.5em] text-[9px] opacity-60">Sincronia Estabilizada V1.3</p>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
               {mangas.map(m => (
-                <div key={m.id} className="group relative" onClick={() => { setSelectedManga(m); setView('detail'); }}>
-                  <div className="aspect-[3/4.5] rounded-3xl overflow-hidden border border-white/10 group-hover:border-blue-500 transition-all shadow-2xl relative bg-slate-900 cursor-pointer">
+                <div key={m.id} className="group relative">
+                  <div 
+                    onClick={() => { setSelectedManga(m); setView('detail'); }}
+                    className="aspect-[3/4.5] rounded-3xl overflow-hidden border border-white/10 group-hover:border-blue-500 transition-all shadow-2xl relative bg-slate-900 cursor-pointer"
+                  >
                     <img src={m.cover} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" alt={m.title} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
+                    
+                    {/* Botão de Excluir Obra (Apenas ADM) */}
+                    {isMonarch && (
+                      <button 
+                        onClick={(e) => handleDeleteManga(m.id, e)}
+                        className="absolute top-4 right-4 z-20 bg-red-600/80 p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500"
+                      >
+                        <Trash2 className="w-4 h-4 text-white" />
+                      </button>
+                    )}
+
                     <div className="absolute bottom-6 left-6 right-6 text-white">
                       <div className="font-black text-xs uppercase mb-1">{m.title}</div>
                       <div className="flex items-center gap-3 text-[10px] opacity-60">
@@ -154,18 +187,25 @@ export default function App() {
 
         {view === 'detail' && selectedManga && (
           <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-4 duration-500">
-            <button onClick={() => setView('home')} className="flex items-center gap-2 text-xs font-black uppercase text-slate-500 hover:text-white"><ChevronLeft className="w-4 h-4" /> Voltar</button>
+            <button onClick={() => setView('home')} className="flex items-center gap-2 text-xs font-black uppercase text-slate-500 hover:text-white transition-all"><ChevronLeft className="w-4 h-4" /> Voltar</button>
             <div className="grid md:grid-cols-3 gap-10">
-              <img src={selectedManga.cover} className="rounded-3xl shadow-2xl border border-white/10 w-full" alt="Capa" />
+              <div className="relative">
+                <img src={selectedManga.cover} className="rounded-3xl shadow-2xl border border-white/10 w-full" alt="Capa" />
+                {isMonarch && (
+                  <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-between">
+                    <span className="text-[10px] font-black text-red-500 uppercase">Zona de Moderação</span>
+                    <button onClick={() => { handleDeleteManga(selectedManga.id, {stopPropagation:()=>{}}); setView('home'); }} className="bg-red-600 p-2 rounded-lg text-white"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                )}
+              </div>
               <div className="md:col-span-2 space-y-6">
-                <h1 className="text-5xl font-black uppercase tracking-tighter">{selectedManga.title}</h1>
+                <h1 className="text-5xl font-black uppercase tracking-tighter leading-none">{selectedManga.title}</h1>
                 <div className="flex gap-4">
                   <button onClick={() => toggleLike(selectedManga)} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase transition-all ${selectedManga.likes?.includes(user?.uid) ? 'bg-red-600 text-white' : 'bg-white text-black'}`}>
                     <Heart className={`w-4 h-4 ${selectedManga.likes?.includes(user?.uid) ? 'fill-white' : ''}`} /> {selectedManga.likes?.length || 0} Curtidas
                   </button>
                 </div>
                 
-                {/* SEÇÃO DE COMENTÁRIOS */}
                 <div className="pt-10 border-t border-white/5 space-y-6">
                   <h3 className="text-xl font-black uppercase flex items-center gap-2"><MessageSquare className="text-blue-500" /> Diálogo de Súditos</h3>
                   <form onSubmit={handleComment} className="flex gap-3">
@@ -178,14 +218,25 @@ export default function App() {
                     />
                     <button type="submit" disabled={!user} className="bg-blue-600 p-3 rounded-2xl disabled:opacity-30"><Send className="w-5 h-5" /></button>
                   </form>
-                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                    {selectedManga.comments?.map((c, i) => (
-                      <div key={i} className="bg-white/5 p-4 rounded-2xl border border-white/5 flex gap-4">
-                        <img src={c.userPhoto} className="w-10 h-10 rounded-xl" alt="Perfil" />
-                        <div>
-                          <div className="text-[10px] font-black text-blue-400 uppercase mb-1">{c.userName} • <span className="text-slate-600">{c.date}</span></div>
-                          <div className="text-sm text-slate-300">{c.text}</div>
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scroll">
+                    {selectedManga.comments?.map((c) => (
+                      <div key={c.id} className="bg-white/5 p-4 rounded-2xl border border-white/5 flex justify-between items-start group">
+                        <div className="flex gap-4">
+                          <img src={c.userPhoto} className="w-10 h-10 rounded-xl" alt="Perfil" />
+                          <div>
+                            <div className="text-[10px] font-black text-blue-400 uppercase mb-1">{c.userName} • <span className="text-slate-600">{c.date}</span></div>
+                            <div className="text-sm text-slate-300">{c.text}</div>
+                          </div>
                         </div>
+                        {/* Botão de Excluir Comentário (Apenas ADM) */}
+                        {isMonarch && (
+                          <button 
+                            onClick={() => handleDeleteComment(selectedManga.id, c.id)}
+                            className="text-slate-600 hover:text-red-500 p-2 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     )).reverse()}
                   </div>
@@ -223,8 +274,6 @@ export default function App() {
           </div>
         )}
       </main>
-      
-      <footer className="py-20 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.6em] border-t border-white/5 mt-20">Lumi Mangás • Domínio de Jean • 2026</footer>
     </div>
   );
 }
