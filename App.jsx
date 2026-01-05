@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, addDoc, onSnapshot, updateDoc, deleteDoc, arrayUnion, arrayRemove, getDoc, setDoc } from 'firebase/firestore';
-import * as Lucide from 'lucide-react';
+
+// Simplificando o import para evitar o erro na linha 9
+import * as Icons from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDHoYGVe2PbZW_yRWOLMlGAGMa-uncmxPM",
@@ -93,26 +95,26 @@ export default function App() {
     setView('home');
   };
 
-  if (isLoading) return <div className="h-screen bg-black flex items-center justify-center text-blue-500 font-black animate-pulse">SINCRONIZANDO...</div>;
+  if (isLoading) return <div className="h-screen bg-black flex items-center justify-center text-blue-500 font-black animate-pulse">CARREGANDO SISTEMA...</div>;
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-200">
       {notification && (
         <div className="fixed top-24 right-6 z-[100] bg-blue-600 text-white px-6 py-3 rounded-2xl shadow-2xl border border-blue-400">
-          <span className="text-[10px] font-black uppercase">{notification}</span>
+          <span className="text-[10px] font-black uppercase tracking-widest">{notification}</span>
         </div>
       )}
 
       {showProfileModal && (
-        <div className="fixed inset-0 z-[110] bg-black/95 flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[110] bg-black/95 flex items-center justify-center p-6 backdrop-blur-md">
           <div className="bg-[#0a0a0a] border border-white/5 w-full max-w-md rounded-[40px] p-10 space-y-6 relative">
-            <Lucide.X className="absolute top-8 right-8 cursor-pointer" onClick={() => setShowProfileModal(false)} />
-            <h2 className="text-2xl font-black uppercase flex items-center gap-3 text-white"><Lucide.Settings className="text-blue-500" /> Perfil</h2>
+            <Icons.X className="absolute top-8 right-8 cursor-pointer text-slate-500" onClick={() => setShowProfileModal(false)} />
+            <h2 className="text-2xl font-black uppercase flex items-center gap-3 text-white"><Icons.Settings className="text-blue-500" /> Perfil</h2>
             <div className="flex flex-col items-center gap-4">
               <div className="relative group">
                 <img src={profile.photo || user.photoURL} className="w-24 h-24 rounded-3xl object-cover border-2 border-blue-500/20" />
                 <label className="absolute inset-0 bg-black/60 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
-                  <Lucide.Camera className="text-white" />
+                  <Icons.Camera className="text-white" />
                   <input type="file" hidden accept="image/*" onChange={(e) => {
                     const file = e.target.files[0];
                     if (file) {
@@ -124,7 +126,7 @@ export default function App() {
                 </label>
               </div>
               <input value={profile.nickname} onChange={(e) => setProfile({...profile, nickname: e.target.value})} placeholder="Seu Apelido" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500 text-center font-bold" />
-              <button onClick={handleUpdateProfile} className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase">Salvar Identidade</button>
+              <button onClick={handleUpdateProfile} className="w-full bg-blue-600 py-4 rounded-xl font-black uppercase tracking-widest">Salvar Identidade</button>
             </div>
           </div>
         </div>
@@ -132,27 +134,28 @@ export default function App() {
 
       {(announcement || isMonarch) && (
         <div className="bg-blue-600/10 border-b border-blue-500/20 py-3 px-6 flex items-center justify-center gap-4">
-          <Lucide.Bell className="w-4 h-4 text-blue-400" />
+          <Icons.Bell className="w-4 h-4 text-blue-400" />
           {isMonarch ? (
             <input value={announcement} onChange={async (e) => { 
               setAnnouncement(e.target.value); 
               await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'announcement'), { text: e.target.value }); 
-            }} placeholder="Decreto..." className="bg-transparent border-none outline-none text-[10px] font-black text-white w-full max-w-2xl text-center uppercase" />
-          ) : <span className="text-[10px] font-black uppercase text-blue-100">{announcement}</span>}
+            }} placeholder="Decreto..." className="bg-transparent border-none outline-none text-[10px] font-black text-white w-full max-w-2xl text-center uppercase tracking-widest" />
+          ) : <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">{announcement}</span>}
+          <Icons.Crown className="w-4 h-4 text-yellow-500" />
         </div>
       )}
 
       <nav className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}>
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center"><Lucide.Book className="text-white w-6 h-6" /></div>
+        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView('home')}>
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-all"><Icons.Book className="text-white w-6 h-6" /></div>
           <span className="text-xl font-black tracking-tighter">LUMI</span>
         </div>
         <div className="flex items-center gap-4">
-          {isMonarch && <button onClick={() => setView('upload')} className="bg-white text-black px-4 py-2 rounded-full text-[10px] font-black uppercase">Postar</button>}
-          {!user ? <button onClick={handleLogin} className="bg-blue-600 px-6 py-2 rounded-full text-[10px] font-black uppercase">Entrar</button> : (
+          {isMonarch && <button onClick={() => setView('upload')} className="bg-white text-black px-4 py-2 rounded-full text-[10px] font-black uppercase hover:bg-blue-600 hover:text-white transition-all">Postar</button>}
+          {!user ? <button onClick={handleLogin} className="bg-blue-600 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">Entrar</button> : (
             <div className="flex items-center gap-3">
-              <img src={profile.photo || user.photoURL} onClick={() => setShowProfileModal(true)} className="w-9 h-9 rounded-xl border border-blue-500/30 object-cover cursor-pointer" />
-              <Lucide.LogOut onClick={() => signOut(auth)} className="w-5 h-5 text-slate-500 cursor-pointer" />
+              <img src={profile.photo || user.photoURL} onClick={() => setShowProfileModal(true)} className="w-9 h-9 rounded-xl border border-blue-500/30 object-cover cursor-pointer hover:scale-110 transition-all" />
+              <Icons.LogOut onClick={() => signOut(auth)} className="w-5 h-5 text-slate-500 cursor-pointer hover:text-red-500 transition-colors" />
             </div>
           )}
         </div>
@@ -161,21 +164,21 @@ export default function App() {
       <main className="max-w-7xl mx-auto p-6">
         {view === 'home' && (
           <div className="space-y-12">
-            <div className="rounded-[40px] bg-blue-900/5 border border-white/5 p-16 text-center mt-4">
-              <Lucide.Sparkles className="text-blue-500 w-10 h-10 mx-auto mb-4" />
+            <div className="rounded-[40px] bg-blue-900/5 border border-white/5 p-16 text-center mt-4 relative overflow-hidden">
+              <Icons.Sparkles className="text-blue-500 w-10 h-10 mx-auto mb-4 animate-pulse" />
               <h1 className="text-6xl md:text-8xl font-black text-white uppercase tracking-tighter mb-2">REINO <span className="text-blue-600">JEAN</span></h1>
-              <p className="text-slate-500 font-bold uppercase tracking-[0.5em] text-[9px] opacity-60">Sincronia V4.4</p>
+              <p className="text-slate-500 font-bold uppercase tracking-[0.5em] text-[9px] opacity-60 italic">Sincronia Rank-S V4.5</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
               {mangas.map(m => (
                 <div key={m.id} className="group relative" onClick={() => { setSelectedManga(m); setView('detail'); setCurrentPage(0); }}>
                   <div className="aspect-[3/4.5] rounded-3xl overflow-hidden border border-white/10 group-hover:border-blue-500 transition-all shadow-2xl relative bg-slate-900">
-                    <img src={m.cover} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" />
+                    <img src={m.cover} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" onError={(e) => e.target.src = 'https://via.placeholder.com/400x600'} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90" />
-                    <div className="absolute bottom-6 left-6 right-6 text-white font-black text-xs uppercase">{m.title}</div>
+                    <div className="absolute bottom-6 left-6 right-6 text-white font-black text-xs uppercase tracking-tight">{m.title}</div>
                   </div>
                   {isMonarch && (
-                    <button onClick={async (e) => { e.stopPropagation(); await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'mangas', m.id)); notify("Removido."); }} className="absolute -top-2 -right-2 bg-red-600 p-2 rounded-lg"><Lucide.Trash2 className="w-4 h-4 text-white" /></button>
+                    <button onClick={async (e) => { e.stopPropagation(); await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'mangas', m.id)); notify("Removido."); }} className="absolute -top-2 -right-2 bg-red-600 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl"><Icons.Trash2 className="w-4 h-4 text-white" /></button>
                   )}
                 </div>
               ))}
@@ -184,8 +187,8 @@ export default function App() {
         )}
 
         {view === 'detail' && selectedManga && (
-          <div className="space-y-12 mt-6">
-            <button onClick={() => setView('home')} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><Lucide.ChevronLeft /> Voltar</button>
+          <div className="space-y-12 mt-6 animate-in fade-in duration-500">
+            <button onClick={() => setView('home')} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-all"><Icons.ChevronLeft className="w-4 h-4" /> Voltar</button>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
               <div className="lg:col-span-4 space-y-6">
                 <img src={selectedManga.cover} className="w-full rounded-[40px] shadow-2xl border border-white/10" />
@@ -195,49 +198,52 @@ export default function App() {
                   const likes = selectedManga.likes || [];
                   const hasLiked = likes.includes(user.uid);
                   await updateDoc(mRef, { likes: hasLiked ? arrayRemove(user.uid) : arrayUnion(user.uid) });
-                }} className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-xs ${selectedManga.likes?.includes(user?.uid) ? 'bg-red-600' : 'bg-white text-black'}`}>
-                  <Lucide.Heart className={selectedManga.likes?.includes(user?.uid) ? 'fill-white' : ''} /> {selectedManga.likes?.length || 0} Curtidas
+                }} className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-xs transition-all ${selectedManga.likes?.includes(user?.uid) ? 'bg-red-600 text-white' : 'bg-white text-black'}`}>
+                  <Icons.Heart className={`w-4 h-4 ${selectedManga.likes?.includes(user?.uid) ? 'fill-white' : ''}`} /> {selectedManga.likes?.length || 0} Curtidas
                 </button>
               </div>
               <div className="lg:col-span-8 space-y-8">
-                <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter leading-none">{selectedManga.title}</h1>
-                <p className="text-slate-400 text-lg">{selectedManga.description}</p>
+                <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter leading-none mb-4">{selectedManga.title}</h1>
+                <p className="text-slate-400 text-lg leading-relaxed font-medium">{selectedManga.description}</p>
                 {selectedManga.pages?.length > 0 ? (
                   <div className="space-y-6 pt-10 border-t border-white/5 text-center">
-                    <div className="aspect-[3/4.5] w-full max-w-xl mx-auto rounded-3xl overflow-hidden bg-black relative">
-                      <img src={selectedManga.pages[currentPage]} className="w-full h-full object-contain" />
-                      <div className="absolute inset-y-0 left-0 w-1/2" onClick={() => setCurrentPage(p => Math.max(0, p - 1))}></div>
-                      <div className="absolute inset-y-0 right-0 w-1/2" onClick={() => setCurrentPage(p => Math.min(selectedManga.pages.length - 1, p + 1))}></div>
+                    <div className="aspect-[3/4.5] w-full max-w-xl mx-auto rounded-3xl overflow-hidden bg-black relative border border-white/5 shadow-2xl">
+                      <img src={selectedManga.pages[currentPage]} className="w-full h-full object-contain" alt={`Página ${currentPage + 1}`} />
+                      <div className="absolute inset-y-0 left-0 w-1/4 cursor-pointer" onClick={() => setCurrentPage(p => Math.max(0, p - 1))}></div>
+                      <div className="absolute inset-y-0 right-0 w-1/4 cursor-pointer" onClick={() => setCurrentPage(p => Math.min(selectedManga.pages.length - 1, p + 1))}></div>
                     </div>
                     <div className="flex justify-center gap-8 items-center">
-                      <Lucide.ChevronLeft onClick={() => setCurrentPage(p => Math.max(0, p - 1))} className="cursor-pointer" />
-                      <span className="text-xs font-black uppercase text-blue-500 tracking-widest">Página {currentPage + 1} / {selectedManga.pages.length}</span>
-                      <Lucide.ChevronRight onClick={() => setCurrentPage(p => Math.min(selectedManga.pages.length - 1, p + 1))} className="cursor-pointer" />
+                      <Icons.ChevronLeft onClick={() => setCurrentPage(p => Math.max(0, p - 1))} className="cursor-pointer hover:text-blue-500 transition-colors" />
+                      <span className="text-xs font-black uppercase text-blue-500 tracking-[0.2em]">Página {currentPage + 1} / {selectedManga.pages.length}</span>
+                      <Icons.ChevronRight onClick={() => setCurrentPage(p => Math.min(selectedManga.pages.length - 1, p + 1))} className="cursor-pointer hover:text-blue-500 transition-colors" />
                     </div>
                   </div>
-                ) : <div className="p-10 border border-white/5 rounded-3xl text-center font-black opacity-30 text-[10px] tracking-widest uppercase">Sem pergaminhos.</div>}
+                ) : <div className="p-10 border border-white/5 rounded-3xl text-center font-black opacity-30 text-[10px] tracking-widest uppercase italic">Nenhum pergaminho encontrado.</div>}
                 <section className="pt-10 border-t border-white/5 space-y-6">
-                  <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3"><Lucide.MessageSquare className="text-blue-500" /> Diálogo</h2>
+                  <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3"><Icons.MessageSquare className="text-blue-500" /> Diálogo</h2>
                   <div className="flex gap-4">
-                    <input placeholder={user ? "Sussurre..." : "Entre para falar..."} className="flex-1 bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500" value={commentText} onChange={(e) => setCommentText(e.target.value)} disabled={!user} />
+                    <input placeholder={user ? "Sussurre ao reino..." : "Aceda ao sistema..."} className="flex-1 bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500 transition-all" value={commentText} onChange={(e) => setCommentText(e.target.value)} disabled={!user} />
                     <button onClick={async () => {
                       if (!user || !commentText.trim()) return;
                       const mRef = doc(db, 'artifacts', appId, 'public', 'data', 'mangas', selectedManga.id);
                       const nC = { id: Date.now().toString(), userId: user.uid, userName: profile.nickname || user.displayName, userPhoto: profile.photo || user.photoURL, text: commentText, date: new Date().toLocaleDateString() };
                       await updateDoc(mRef, { comments: arrayUnion(nC) });
                       setCommentText(''); notify("Enviado!");
-                    }} className="bg-blue-600 p-4 rounded-2xl disabled:opacity-20" disabled={!user || !commentText.trim()}><Lucide.Send className="w-5 h-5" /></button>
+                    }} className="bg-blue-600 p-4 rounded-2xl hover:bg-blue-500 transition-all disabled:opacity-20" disabled={!user || !commentText.trim()}><Icons.Send className="w-5 h-5" /></button>
                   </div>
-                  <div className="space-y-4 max-h-[500px] overflow-y-auto">
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scroll">
                     {(selectedManga.comments || []).map((c) => (
-                      <div key={c.id} className="bg-white/5 p-5 rounded-3xl border border-white/5 relative group">
-                        <div className="flex items-center gap-3 mb-2">
-                          <img src={c.userPhoto} className="w-8 h-8 rounded-lg object-cover" />
-                          <span className="text-[10px] font-black uppercase text-blue-400">{c.userName}</span>
+                      <div key={c.id} className="bg-white/5 p-6 rounded-3xl border border-white/5 relative group hover:bg-white/10 transition-all">
+                        <div className="flex items-center gap-3 mb-3">
+                          <img src={c.userPhoto} className="w-8 h-8 rounded-lg object-cover shadow-md" />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-blue-400 leading-none">{c.userName}</span>
+                            <span className="text-[7px] text-slate-600 uppercase font-black mt-1">{c.date}</span>
+                          </div>
                         </div>
                         <p className="text-slate-300 text-sm leading-relaxed">{c.text}</p>
                         {(isMonarch || user?.uid === c.userId) && (
-                          <Lucide.Trash2 className="absolute top-5 right-5 w-4 h-4 text-slate-500 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100" onClick={async () => {
+                          <Icons.Trash2 className="absolute top-6 right-6 w-4 h-4 text-slate-500 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 transition-all" onClick={async () => {
                             const mRef = doc(db, 'artifacts', appId, 'public', 'data', 'mangas', selectedManga.id);
                             await updateDoc(mRef, { comments: selectedManga.comments.filter(com => com.id !== c.id) });
                             notify("Apagado.");
@@ -253,18 +259,34 @@ export default function App() {
         )}
 
         {view === 'upload' && isMonarch && (
-          <div className="max-w-2xl mx-auto bg-white/5 p-12 rounded-[50px] border border-white/5 mt-10">
-            <h2 className="text-4xl font-black text-white uppercase mb-10"><Lucide.Crown className="text-yellow-500" /> Nova Obra</h2>
+          <div className="max-w-2xl mx-auto bg-white/5 p-12 rounded-[50px] border border-white/5 mt-10 shadow-3xl animate-in zoom-in-95 duration-300">
+            <h2 className="text-4xl font-black text-white uppercase mb-10 tracking-tighter flex items-center gap-4"><Icons.Crown className="text-yellow-500" /> Nova Obra</h2>
             <form onSubmit={handleAddManga} className="space-y-6">
-              <input name="title" required placeholder="Título" className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500 font-bold" />
-              <input name="cover" placeholder="URL da Capa" className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500" />
-              <textarea name="description" required rows="3" placeholder="Sinopse..." className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500"></textarea>
-              <textarea name="pages" required rows="5" placeholder="Páginas (separe por vírgula)..." className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500 text-xs"></textarea>
-              <button type="submit" className="w-full bg-white text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Lançar no Reino</button>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase text-slate-500 ml-4">Título da Relíquia</label>
+                <input name="title" required placeholder="Ex: Solo Leveling" className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500 font-bold" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase text-slate-500 ml-4">Portal da Capa (URL)</label>
+                <input name="cover" placeholder="Link da imagem .jpg ou .png" className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase text-slate-500 ml-4">Crônica (Sinopse)</label>
+                <textarea name="description" required rows="3" placeholder="A história que será contada..." className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500 font-medium"></textarea>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase text-slate-500 ml-4">Pergaminhos (Páginas - URL separada por vírgula)</label>
+                <textarea name="pages" required rows="5" placeholder="link1.jpg, link2.jpg..." className="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-white outline-none focus:border-blue-500 text-xs font-mono"></textarea>
+              </div>
+              <button type="submit" className="w-full bg-white text-black py-5 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-blue-600 hover:text-white transition-all duration-500 shadow-xl">Lançar no Reino</button>
             </form>
           </div>
         )}
       </main>
+      
+      <footer className="py-24 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.6em] border-t border-white/5 mt-32">
+        Lumi Mangás • Soberania de Jean • 2026
+      </footer>
     </div>
   );
 }
